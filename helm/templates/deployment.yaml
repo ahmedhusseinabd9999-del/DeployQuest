@@ -1,0 +1,22 @@
+# This is a sample deployment manifest file for a simple web application.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployquest
+  labels:
+    app: deployquest
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: deployquest
+  template:
+    metadata:
+      labels:
+        app: deployquest
+    spec:
+      containers:
+      - name: deployquest
+        image: ahmedhusseinabdelkader/deployquest:v1
+        ports:
+        - containerPort: 8080
