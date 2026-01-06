@@ -10,16 +10,23 @@ on:
       - 'README.md'
 
 jobs:
+
   build:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
         go-version: '1.21'
+
+    - name: Generate dependencies
+      run: go mod tidy
+
     - name: Build
       run: go build -o deployquest
+
     - name: Test
       run: go test ./...
 
@@ -27,10 +34,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
         go-version: '1.21'
+
+    - name: Generate dependencies
+      run: go mod tidy
+
     - name: Run golangci-lint
       uses: golangci/golangci-lint-action@v6
       with:
@@ -41,18 +53,23 @@ jobs:
     needs: build
     steps:
     - uses: actions/checkout@v4
-    - uses: docker/setup-buildx-action@v1
-      name: Set up Docker Buildx
-    - uses: docker/login-action@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Login to DockerHub
+      uses: docker/login-action@v3
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
-    - uses: docker/build-push-action@v6
+
+    - name: Build and Push Docker image
+      uses: docker/build-push-action@v5
       with:
         context: .
         file: ./Dockerfile
         push: true
-        tags: ${{ secrets.DOCKERHUB_USERNAME }}/go-web-app:${{github.run_id}}
+        tags: ${{ secrets.DOCKERHUB_USERNAME }}/go-web-app:${{ github.run_id }}
 
   update-newtag-in-helm-chart:
     runs-on: ubuntu-latest
@@ -61,9 +78,11 @@ jobs:
     - uses: actions/checkout@v4
       with:
         token: ${{ secrets.TOKEN }}
+
     - name: Update tag in Helm chart
       run: |
-        sed -i 's/tag: .*/tag: "${{github.run_id}}"/' helm/values.yaml
+        sed -i 's/tag: .*/tag: "${{ github.run_id }}"/' helm/values.yaml
+
     - name: Commit and push changes
       run: |
         git config --global user.email "ahmedhusseinabd9999@gmail.com"
