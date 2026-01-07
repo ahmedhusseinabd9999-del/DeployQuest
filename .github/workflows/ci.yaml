@@ -9,84 +9,84 @@ on:
       - 'k8s/**'
       - 'README.md'
 
+permissions:
+  contents: write
+
 jobs:
 
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.21'
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
 
-    - name: Generate dependencies
-      run: go mod tidy
+      - name: Build
+        run: go build -o deployquest
 
-    - name: Build
-      run: go build -o deployquest
-
-    - name: Test
-      run: go test ./...
+      - name: Test
+        run: go test ./...
 
   code-quality:
     runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.21'
-
-    - name: Generate dependencies
-      run: go mod tidy
-
-    - name: Run golangci-lint
-      uses: golangci/golangci-lint-action@v6
-      with:
-        version: v1.56.2
-
-  push:
-    runs-on: ubuntu-latest
     needs: build
     steps:
-    - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
 
-    - name: Login to DockerHub
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.56.2
 
-    - name: Build and Push Docker image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        file: ./Dockerfile
-        push: true
-        tags: ${{ secrets.DOCKERHUB_USERNAME }}/go-web-app:${{ github.run_id }}
-
-  update-newtag-in-helm-chart:
+  push-docker:
     runs-on: ubuntu-latest
-    needs: push
+    needs: code-quality
     steps:
-    - uses: actions/checkout@v4
-      with:
-        token: ${{ secrets.TOKEN }}
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Update tag in Helm chart
-      run: |
-        sed -i 's/tag: .*/tag: "${{ github.run_id }}"/' helm/values.yaml
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
 
-    - name: Commit and push changes
-      run: |
-        git config --global user.email "ahmedhusseinabd9999@gmail.com"
-        git config --global user.name "ahmedhusseinabd9999-del"
-        git add helm/values.yaml
-        git commit -m "Update tag in Helm chart"
-        git push
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and Push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/go-web-app:${{ github.run_id }}
+
+  update-helm:
+    runs-on: ubuntu-latest
+    needs: push-docker
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Update tag in Helm chart
+        run: |
+          sed -i 's/tag: .*/tag: "${{ github.run_id }}"/' helm/values.yaml
+
+      - name: Commit and push changes
+        run: |
+          git config user.email "github-actions@github.com"
+          git config user.name "github-actions"
+          git add helm/values.yaml
+          git commit -m "Update image tag to ${{ github.run_id }}" || echo "No changes to commit"
+          git push

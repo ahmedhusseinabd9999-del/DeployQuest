@@ -5,7 +5,7 @@
 replicaCount: 1
 
 image:
-  repository: ahmedhusseinabdelkader/deployquest
+  repository: ahmedhusseinabd9999-del/deployquest
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: "v1"
