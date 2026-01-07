@@ -8,7 +8,7 @@ image:
   repository: ahmedhusseinabd9999-del/deployquest
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "20778896319"
+  tag: ""
 
 ingress:
   enabled: false
